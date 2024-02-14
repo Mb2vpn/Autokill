@@ -1,5 +1,5 @@
 #!/bin/bash
-# By Namydev
+# NAMYDEV
 #!/bin/bash
 clear
 MAX=1
@@ -18,7 +18,7 @@ fi
 if [ $OS -eq 2 ]; then
 	service sshd restart > /dev/null 2>&1;
 fi
-	service dropbear restart > /dev/null 2>&1;
+	service udp-custom restart > /dev/null 2>&1;
 				
 if [[ ${1+x} ]]; then
         MAX=$1;
@@ -33,11 +33,11 @@ fi
                 jumlah[$i]=0;
                 i=$i+1;
 			done
-        cat $LOG | grep -i dropbear | grep -i "Password auth succeeded" > /tmp/log-db.txt
-        proc=( `ps aux | grep -i dropbear | awk '{print $2}'`);
+        cat $LOG | grep -i udp-custom | grep -i "Password auth succeeded" > /tmp/log-db.txt
+        proc=( `ps aux | grep -i udp-custom | awk '{print $2}'`);
         for PID in "${proc[@]}"
 			do
-                cat /tmp/log-db.txt | grep "dropbear\[$PID\]" > /tmp/log-db-pid.txt
+                cat /tmp/log-db.txt | grep "udp-custom\[$PID\]" > /tmp/log-db-pid.txt
                 NUM=`cat /tmp/log-db-pid.txt | wc -l`;
                 USER=`cat /tmp/log-db-pid.txt | awk '{print $10}' | sed 's/'\''//g'`;
                 IP=`cat /tmp/log-db-pid.txt | awk '{print $12}'`;
@@ -92,6 +92,6 @@ fi
                 if [ $OS -eq 2 ]; then
                         service sshd restart > /dev/null 2>&1;
                 fi
-                service dropbear restart > /dev/null 2>&1;
+                service udp-custom restart > /dev/null 2>&1;
                 j=0;
 		fi
