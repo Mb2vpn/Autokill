@@ -1,40 +1,97 @@
 #!/bin/bash
-# kill multi login
-# Credit: Namydev
-PARAM=$1
-echo -n > /tmp/pid2
-ps ax|grep dropbear > /tmp/pid
-cat /tmp/pid | grep -i 'dropbear -p' > /tmp/pids
-cat /var/log/auth.log |  grep -i "Password auth succeeded" > /tmp/sks
-perl -pi -e 's/Password auth succeeded for//g' /tmp/sks
-perl -pi -e 's/dropbear//g' /tmp/sks
-cat /tmp/pid | while read line;do
-set -- $line
-p=$1
-var=`cat /tmp/sks | grep -i $1`
-set -- $var
-l=$6
-if [ "$6" != '' ]
-then
-echo "$p $l" | cat - /tmp/pid2 > /tmp/temp && mv /tmp/temp /tmp/pid2
+# By Namydev
+#!/bin/bash
+clear
+MAX=1
+if [ -e "/var/log/auth.log" ]; then
+        OS=1;
+        LOG="/var/log/auth.log";
 fi
- done
-echo -n > /tmp/user1
-cat /tmp/pid2 | while read line;do
-set -- $line
-p=$1
-u=$2
-cat /tmp/user1 | grep -i $u > /dev/null
-if [ $? = 1 ];then
-echo $line >> /tmp/user1
-else
-kill $p
-echo "kill $p user $u"
+if [ -e "/var/log/secure" ]; then
+        OS=2;
+        LOG="/var/log/secure";
 fi
-done
-rm -f /tmp/pid
-rm -f /tmp/pid2
-rm -f /tmp/pids
-rm -f /tmp/sks
-rm -f /tmp/user1
-exit 0
+
+if [ $OS -eq 1 ]; then
+	service ssh restart > /dev/null 2>&1;
+fi
+if [ $OS -eq 2 ]; then
+	service sshd restart > /dev/null 2>&1;
+fi
+	service dropbear restart > /dev/null 2>&1;
+				
+if [[ ${1+x} ]]; then
+        MAX=$1;
+fi
+
+        cat /etc/passwd | grep "/home/" | cut -d":" -f1 > /root/user.txt
+        username1=( `cat "/root/user.txt" `);
+        i="0";
+        for user in "${username1[@]}"
+			do
+                username[$i]=`echo $user | sed 's/'\''//g'`;
+                jumlah[$i]=0;
+                i=$i+1;
+			done
+        cat $LOG | grep -i dropbear | grep -i "Password auth succeeded" > /tmp/log-db.txt
+        proc=( `ps aux | grep -i dropbear | awk '{print $2}'`);
+        for PID in "${proc[@]}"
+			do
+                cat /tmp/log-db.txt | grep "dropbear\[$PID\]" > /tmp/log-db-pid.txt
+                NUM=`cat /tmp/log-db-pid.txt | wc -l`;
+                USER=`cat /tmp/log-db-pid.txt | awk '{print $10}' | sed 's/'\''//g'`;
+                IP=`cat /tmp/log-db-pid.txt | awk '{print $12}'`;
+                if [ $NUM -eq 1 ]; then
+                        i=0;
+                        for user1 in "${username[@]}"
+							do
+                                if [ "$USER" == "$user1" ]; then
+                                        jumlah[$i]=`expr ${jumlah[$i]} + 1`;
+                                        pid[$i]="${pid[$i]} $PID"
+                                fi
+                                i=$i+1;
+							done
+                fi
+			done
+        cat $LOG | grep -i sshd | grep -i "Accepted password for" > /tmp/log-db.txt
+        data=( `ps aux | grep "\[priv\]" | sort -k 72 | awk '{print $2}'`);
+        for PID in "${data[@]}"
+			do
+                cat /tmp/log-db.txt | grep "sshd\[$PID\]" > /tmp/log-db-pid.txt;
+                NUM=`cat /tmp/log-db-pid.txt | wc -l`;
+                USER=`cat /tmp/log-db-pid.txt | awk '{print $9}'`;
+                IP=`cat /tmp/log-db-pid.txt | awk '{print $11}'`;
+                if [ $NUM -eq 1 ]; then
+                        i=0;
+                        for user1 in "${username[@]}"
+							do
+                                if [ "$USER" == "$user1" ]; then
+                                        jumlah[$i]=`expr ${jumlah[$i]} + 1`;
+                                        pid[$i]="${pid[$i]} $PID"
+                                fi
+                                i=$i+1;
+							done
+                fi
+        done
+        j="0";
+        for i in ${!username[*]}
+			do
+                if [ ${jumlah[$i]} -gt $MAX ]; then
+                        date=`date +"%Y-%m-%d %X"`;
+                        echo "$date - ${username[$i]} - ${jumlah[$i]}";
+                        echo "$date - ${username[$i]} - ${jumlah[$i]}" >> /root/log-limit.txt;
+                        kill ${pid[$i]};
+                        pid[$i]="";
+                        j=`expr $j + 1`;
+                fi
+			done
+        if [ $j -gt 0 ]; then
+                if [ $OS -eq 1 ]; then
+                        service ssh restart > /dev/null 2>&1;
+                fi
+                if [ $OS -eq 2 ]; then
+                        service sshd restart > /dev/null 2>&1;
+                fi
+                service dropbear restart > /dev/null 2>&1;
+                j=0;
+		fi
